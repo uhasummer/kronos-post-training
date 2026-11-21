@@ -1,0 +1,20 @@
+seed: 1
+out_dir: smoke/runs_fac
+data: {canonical_dir: smoke/canonical, shard_dir: smoke/shards_a158, factor_dir: smoke/factors, rows_per_shard: 5000, near_dup_thresh: 0.5}
+sources: []
+factors: {builtin: [ret_5, vol_20], qlib_alpha158: {qlib_dir: /nonexistent, instruments: all, market: CN}, norm: cs_rank, clip: 3.0, token_bits: 8, hidden: 32}
+train:
+  lookback: 64
+  predict: 0
+  clip: 5.0
+  repr: logret
+  logret_cum_channel: true
+  factor_mode: cond            # overridden per test below
+  cond_bucket: true
+  train_end: "2021-06-30"
+  val_start: "2021-07-01"
+  val_end: "2021-12-31"
+tokenizer: {d_in: 7, d_model: 32, n_heads: 4, ff_dim: 64, n_enc_layers: 1, n_dec_layers: 1, ffn_dropout_p: 0.0, attn_dropout_p: 0.0, resid_dropout_p: 0.0, s1_bits: 4, s2_bits: 4, beta: 0.05, gamma0: 1.0, gamma: 1.1, zeta: 0.05, group_size: 4}
+tokenizer_train: {micro_batch: 8, lr: 1.0e-3, total_steps: 5, samples_per_epoch: 64, val_samples: 16, log_every: 1, val_every: 5, save_every: 5}
+predictor: {s1_bits: 4, s2_bits: 4, n_layers: 1, d_model: 32, n_heads: 4, ff_dim: 64, ffn_dropout_p: 0.0, attn_dropout_p: 0.0, resid_dropout_p: 0.0, token_dropout_p: 0.0, learn_te: true}
+predictor_train: {micro_batch: 8, lr: 1.0e-3, total_steps: 5, samples_per_epoch: 64, val_samples: 16, log_every: 1, val_every: 5, save_every: 5, cond_factors: {hidden: 16, dropout: 0.25, group_dropout: 0.2}}

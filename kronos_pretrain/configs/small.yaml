@@ -1,0 +1,94 @@
+# Small pipeline-proving run: all A-share daily (Qlib) + HK 09988 5min/15min/60min/1D. 2 GPUs.
+seed: 100
+out_dir: runs/small
+data:
+  canonical_dir: data/canonical
+  shard_dir: data/shards
+  rows_per_shard: 20000000
+  near_dup_thresh: 0.5
+sources:                                   # order = priority
+  - {type: qlib_bin, path: ~/.qlib/qlib_data/cn_data, instruments: all, market: CN}
+  - type: csv
+    market: HK
+    freq: 5min
+    path: data/examples/hk_09988_5min.csv
+    symbol: "09988"
+    ts_format: "%Y/%m/%d %H:%M"
+    columns: {ts: timestamps, open: open, high: high, low: low, close: close, volume: volume, amount: null}
+  - {type: resample, market: HK, from: 5min, to: [15min, 60min, 1D]}
+# factors: {builtin: all, norm: cs_rank, clip: 3.0, token_bits: 8, hidden: 64}   # uncomment to fuse factors; add external: [...] for your own
+train:
+  lookback: 512
+  predict: 0                               # pretraining window = lookback + predict + 1 = 513 bars (Kronos max_context 512 + 1 for next-token shift)
+  clip: 5.0
+  alpha: 0.5                               # bucket sampling temperature
+  train_end: "2022-12-31"
+  val_start: "2023-01-01"
+  val_end: "2023-12-31"
+  # ---- optional (all off = upstream Kronos behaviour); see CONFIG.md ----
+  repr: zscore                             # or logret (then tokenizer.d_in: 7 when logret_cum_channel is true)
+  time_features: kronos                    # or session (needs sessions)
+  sessions: {CN: [["09:30","11:30"],["13:00","15:00"]], HK: [["09:30","12:00"],["13:00","16:00"]], US: [["09:30","16:00"]]}
+  max_gap: {5min: 3, 15min: 3, 60min: 2, 1D: 15}
+  # alpha_schedule: [[0, 0.3], [3000, 1.0]]
+  cond_bucket: false
+  factor_mode: cond                        # where factors are fused: repr | token | cond (only matters when `factors:` is set)
+tokenizer:                                 # = NeoQuasar/Kronos-Tokenizer-base architecture
+  d_in: 6
+  d_model: 256
+  n_heads: 4
+  ff_dim: 512
+  n_enc_layers: 4
+  n_dec_layers: 4
+  ffn_dropout_p: 0.0
+  attn_dropout_p: 0.0
+  resid_dropout_p: 0.0
+  s1_bits: 10
+  s2_bits: 10
+  beta: 0.05
+  gamma0: 1.0
+  gamma: 1.1
+  zeta: 0.05
+  group_size: 4
+tokenizer_train:
+  micro_batch: 64
+  accum: 1
+  lr: 2.0e-4
+  warmup_steps: 300
+  total_steps: 6000
+  samples_per_epoch: 200000
+  val_samples: 4096
+  log_every: 50
+  val_every: 500
+  save_every: 1000
+  grad_clip: 2.0
+  workers: 4
+  bit_entropy_weight: 0.0                  # try 0.1
+predictor:                                 # = Kronos-mini-ish; swap for Kronos-small dims (512/8/1024/8 layers) for a real run
+  s1_bits: 10
+  s2_bits: 10
+  n_layers: 4
+  d_model: 256
+  n_heads: 4
+  ff_dim: 512
+  ffn_dropout_p: 0.1
+  attn_dropout_p: 0.1
+  resid_dropout_p: 0.1
+  token_dropout_p: 0.1
+  learn_te: true
+predictor_train:
+  micro_batch: 32
+  accum: 2
+  lr: 4.0e-4
+  warmup_steps: 300
+  total_steps: 6000
+  samples_per_epoch: 200000
+  val_samples: 4096
+  log_every: 50
+  val_every: 500
+  save_every: 1000
+  grad_clip: 3.0
+  workers: 4
+  cond_factors: {hidden: 64, dropout: 0.25, group_dropout: 0.2}
+  downstream_val: {every: 1000, pkl: data/eval/cn_test.pkl, n_dates: 30, lookback: 90, horizon: 10, bucket: CN_1D}
+ds: {zero_stage: 2, bf16_weights: false}

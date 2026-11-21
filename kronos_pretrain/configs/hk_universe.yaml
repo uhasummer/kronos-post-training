@@ -1,0 +1,7 @@
+# Hang Seng Index constituents, daily, via yfinance -> data/canonical_hk (separate dir: does not touch the A-share shards/catalog)
+seed: 0
+out_dir: runs/hk
+data: {canonical_dir: data/canonical_hk, shard_dir: data/shards_hk}
+sources:
+  - {type: yfinance, market: HK, freq: 1D, ticker_file: configs/hsi_tickers.txt, start: "2005-01-01", adjust: true, batch: 50}
+train: {lookback: 512, predict: 0, clip: 5.0, train_end: "2022-12-31", val_start: "2023-01-01", val_end: "2023-12-31"}

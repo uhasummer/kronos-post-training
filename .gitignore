@@ -1,0 +1,33 @@
+# Upstream Kronos checkout (cloned next to the packages; see INSTALL)
+/Kronos/
+
+# Data: market data is not redistributed, regenerate with kronos_pretrain/ingest.py
+data/
+*.parquet
+*.pkl
+*.bin
+*.csv
+!kronos_pretrain/configs/*.csv
+
+# Training artefacts
+runs/
+signals/
+signals_hk/
+*.log
+*.pt
+*.safetensors
+bench_results/
+results/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

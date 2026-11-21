@@ -1,0 +1,18 @@
+This project builds on Kronos, a foundation model for financial candlesticks.
+
+    Kronos — https://github.com/shiyu-coder/Kronos
+    MIT License, Copyright (c) 2025 ShiYu
+
+The upstream model code is NOT vendored here: `kpaths.py` locates a separate
+Kronos checkout at `$KRONOS_UPSTREAM` or next to these packages (see INSTALL.md).
+
+Two files reproduce upstream code, with the changes noted in their docstrings:
+
+  kronos_pretrain/model_ext.py   reproduces Kronos.forward and decode_s1 with one
+                                 added line, so that a (market, frequency) bucket
+                                 embedding can be injected.
+  kronos_post/backbone.py        reproduces Kronos.forward up to the final norm,
+                                 to read hidden states instead of generated bars.
+
+Both remain under the upstream MIT license and its copyright notice above.
+Everything else in this repository is Copyright (c) 2026 WJ, MIT licensed.

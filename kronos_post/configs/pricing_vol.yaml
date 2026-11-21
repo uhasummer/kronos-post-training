@@ -1,0 +1,27 @@
+# Experiment 0 of post-training: is there cross-sectional signal in the pretrained representation?
+# Frozen official Kronos-small + linear head + IC loss on A-share daily (shards built by kronos_pretrain, incl. Alpha158 factors unused here).
+seed: 0
+out_dir: runs/pricing_vol
+data: {shard_dir: ../kronos_pretrain/data/shards_a158}
+backbone:
+  tokenizer: NeoQuasar/Kronos-Tokenizer-base
+  model: NeoQuasar/Kronos-small
+  cond: false                      # true for KronosCond checkpoints from the pretraining arms (then set factor_mode / n_factors)
+  factor_mode: null
+adapter: lora                      # probe | lora | full
+lora: {r: 8, alpha: 16, dropout: 0.05}
+task: {type: vol, loss: mse, pool: mean_last, pool_k: 16, head_hidden: 64, head_dropout: 0.1}
+cs:                                # cross-sectional batching (see data_cs.py)
+  buckets: [CN_1D]
+  lookback: 512
+  horizon: 10                      # = Kronos predict_window; label = open[t+1] -> open[t+11]
+  min_symbols: 50
+  max_symbols: 200                 # symbols per date per step (memory: 300 x 512 tokens)
+  train_end: "2022-12-31"
+  val_start: "2023-01-01"
+  val_end: "2023-12-31"
+  embargo_bars: 10
+  repr: zscore
+  clip: 5.0
+train: {micro_batch: 1, accum: 4, lr: 1.0e-3, lr_schedule: cosine, warmup_steps: 100, weight_decay: 0.01, grad_clip: 1.0, total_steps: 1500, log_every: 20, val_every: 500, save_every: 500, workers: 2}
+ds: {zero_stage: 2, bf16_weights: false}

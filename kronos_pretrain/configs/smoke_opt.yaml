@@ -1,0 +1,24 @@
+# smoke config with every optional feature switched ON (logret+cum channel => d_in 7, session time features, max_gap, cond_bucket, entropy reg, alpha schedule)
+seed: 1
+out_dir: smoke/runs_opt
+data: {canonical_dir: smoke/canonical, shard_dir: smoke/shards, rows_per_shard: 5000, near_dup_thresh: 0.5}
+sources: []
+train:
+  lookback: 64
+  predict: 0
+  clip: 5.0
+  repr: logret
+  logret_cum_channel: true
+  logret_scale: 100.0
+  time_features: session
+  sessions: {CN: [["09:30","11:30"],["13:00","15:00"]], HK: [["09:30","12:00"],["13:00","16:00"]]}
+  max_gap: {5min: 3, 1D: 15}
+  alpha_schedule: [[0, 0.3], [1000, 1.0]]
+  cond_bucket: true
+  train_end: "2021-06-30"
+  val_start: "2021-07-01"
+  val_end: "2021-12-31"
+tokenizer: {d_in: 7, d_model: 32, n_heads: 4, ff_dim: 64, n_enc_layers: 1, n_dec_layers: 1, ffn_dropout_p: 0.0, attn_dropout_p: 0.0, resid_dropout_p: 0.0, s1_bits: 4, s2_bits: 4, beta: 0.05, gamma0: 1.0, gamma: 1.1, zeta: 0.05, group_size: 4}
+tokenizer_train: {micro_batch: 8, lr: 1.0e-3, total_steps: 5, samples_per_epoch: 64, val_samples: 16, log_every: 1, val_every: 5, save_every: 5, bit_entropy_weight: 0.1}
+predictor: {s1_bits: 4, s2_bits: 4, n_layers: 1, d_model: 32, n_heads: 4, ff_dim: 64, ffn_dropout_p: 0.0, attn_dropout_p: 0.0, resid_dropout_p: 0.0, token_dropout_p: 0.0, learn_te: true}
+predictor_train: {micro_batch: 8, lr: 1.0e-3, total_steps: 5, samples_per_epoch: 64, val_samples: 16, log_every: 1, val_every: 5, save_every: 5}

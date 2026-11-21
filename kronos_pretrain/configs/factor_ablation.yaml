@@ -1,0 +1,70 @@
+# Experiment 1: "do factors help at all?"  A-share daily only, official Kronos tokenizer (stage 1 skipped),
+# Kronos-small-sized predictor trained from scratch with Alpha158 + builtin factors as predictor conditioning.
+# Compare downstream RankIC "factors on" vs "factors zeroed" printed every val; then rerun with factor_mode: token / repr.
+seed: 100
+out_dir: runs/factor_ablation_cond
+tokenizer_path: NeoQuasar/Kronos-Tokenizer-base       # skip stage 1
+data: {canonical_dir: data/canonical, shard_dir: data/shards_a158, factor_dir: data/factors, rows_per_shard: 20000000, near_dup_thresh: 0.5, cleaning: {enabled: true}}
+sources:
+  - {type: qlib_bin, path: ~/.qlib/qlib_data/cn_data, instruments: all, market: CN}
+factors:
+  builtin: all
+  qlib_alpha158: {qlib_dir: ~/.qlib/qlib_data/cn_data, instruments: all, start: "2010-01-01", end: "2025-12-31", market: CN, chunk: 400}
+  norm: cs_rank
+  clip: 3.0
+  token_bits: 8
+  hidden: 64
+train:
+  lookback: 512
+  predict: 0
+  clip: 5.0
+  alpha: 0.5
+  train_end: "2022-12-31"                 # = Kronos finetune split; CSI300 test 2024-04..2025-06 never touched
+  val_start: "2023-01-01"
+  val_end: "2023-12-31"
+  repr: zscore                            # official tokenizer => must stay zscore, d_in 6
+  time_features: kronos
+  max_gap: {1D: 15}
+  cap_windows_per_series: 200000          # TimesFM-style cap (paper reproduction value)
+  val_symbol_frac: 0.0                    # e.g. 0.05 => 5% of symbols held out entirely (unseen-symbol validation)
+  # context_lengths: [256, 512]           # multi-length training; same length within a micro-batch
+  zero_volume_prob: 0.05                  # paper regularisation
+  synthetic_fraction: 0.0                 # GBM+regime+GARCH+jump windows mixed in (bucket SYN); 0.1 = Chronos-style 10%
+  bucket_weight_mult: {}                  # e.g. {USFUT_1D: 2.0, CRYPTO_5min: 2.0}: paper up-weights futures/crypto/forex
+  cond_bucket: false
+  factor_mode: cond                       # <- change to token / repr for the other two arms (repr also needs a new tokenizer with d_in 6+176)
+tokenizer: {d_in: 6, d_model: 256, n_heads: 4, ff_dim: 512, n_enc_layers: 4, n_dec_layers: 4, ffn_dropout_p: 0.0, attn_dropout_p: 0.0, resid_dropout_p: 0.0, s1_bits: 10, s2_bits: 10, beta: 0.05, gamma0: 1.0, gamma: 1.1, zeta: 0.05, group_size: 4}
+tokenizer_train: {micro_batch: 64, lr: 2.0e-4, lr_schedule: cosine, warmup_steps: 600, warmup_start_frac: 0.1, weight_decay: 0.1, grad_clip: 2.0, total_steps: 6000, factor_total_steps: 2000, samples_per_epoch: 200000, val_samples: 4096, log_every: 50, val_every: 500, save_every: 1000, workers: 4}
+predictor: {s1_bits: 10, s2_bits: 10, n_layers: 8, d_model: 512, n_heads: 8, ff_dim: 1024, ffn_dropout_p: 0.25, attn_dropout_p: 0.1, resid_dropout_p: 0.25, token_dropout_p: 0.1, learn_te: true}
+predictor_train:
+  micro_batch: 32
+  accum: 2
+  lr: 1.0e-3                              # paper Table 5 peak lr for Kronos-small
+  lr_schedule: cosine
+  warmup_steps: 3000                      # paper: 15k of 200k (7.5%); scaled to our 20k budget
+  warmup_start_frac: 0.1
+  weight_decay: 0.01
+  s2_conditioning: teacher                # paper Eq.8 (upstream scripts default to sampled s1)
+  total_steps: 20000
+  samples_per_epoch: 400000
+  val_samples: 4096
+  log_every: 100
+  val_every: 1000
+  save_every: 2000
+  grad_clip: 1.0
+  workers: 6
+  cond_factors: {hidden: 64, dropout: 0.25, group_dropout: 0.2}
+  forecast_eval: {n_windows: 256, pred_len: 16, every: 1000}     # generic AR check vs persistence on val windows
+  downstream_val:
+    every: 1000                           # = one virtual epoch: samples_per_epoch 400000 / (micro 32 x accum 2 x 2 GPUs) ... set to your epoch length
+    pkl: data/eval/cn_test.pkl        # CSI300 test 2024-04..2025-06 (reported)
+    val_pkl: data/eval/cn_val.pkl     # CSI300 val 2022-09..2024-06 (used for the stopping rule)
+    n_dates: 30
+    lookback: 90
+    horizon: 10
+    market: CN
+    reference: true                       # official Kronos-small zero-shot RankIC on the same windows, computed once at start
+    stop_on: val                          # val | test | null. Stop when RankIC > official + margin for `patience` consecutive evals
+    margin: 0.005
+    patience: 2
+ds: {zero_stage: 2, bf16_weights: false}

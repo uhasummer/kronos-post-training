@@ -1,0 +1,133 @@
+seed: 100
+out_dir: runs/pretrain_none10k
+data:
+  canonical_dir: data/canonical
+  shard_dir: data/shards_a158
+  factor_dir: data/factors
+  rows_per_shard: 20000000
+  near_dup_thresh: 0.5
+  cleaning:
+    enabled: true
+sources:
+- type: qlib_bin
+  path: ~/.qlib/qlib_data/cn_data
+  instruments: all
+  market: CN
+factors:
+  builtin: all
+  qlib_alpha158:
+    qlib_dir: ~/.qlib/qlib_data/cn_data
+    instruments: all
+    start: '2010-01-01'
+    end: '2025-12-31'
+    market: CN
+    chunk: 400
+  norm: cs_rank
+  clip: 3.0
+  token_bits: 8
+  hidden: 64
+train:
+  lookback: 512
+  predict: 0
+  clip: 5.0
+  alpha: 0.5
+  train_end: '2022-12-31'
+  val_start: '2023-01-01'
+  val_end: '2023-12-31'
+  repr: zscore
+  time_features: kronos
+  max_gap:
+    1D: 15
+  cap_windows_per_series: 200000
+  val_symbol_frac: 0.0
+  zero_volume_prob: 0.05
+  synthetic_fraction: 0.0
+  bucket_weight_mult: {}
+  cond_bucket: false
+  factor_mode: none
+tokenizer:
+  d_in: 6
+  d_model: 256
+  n_heads: 4
+  ff_dim: 512
+  n_enc_layers: 4
+  n_dec_layers: 4
+  ffn_dropout_p: 0.0
+  attn_dropout_p: 0.0
+  resid_dropout_p: 0.0
+  s1_bits: 10
+  s2_bits: 10
+  beta: 0.05
+  gamma0: 1.0
+  gamma: 1.1
+  zeta: 0.05
+  group_size: 4
+tokenizer_train:
+  micro_batch: 64
+  lr: 0.0002
+  lr_schedule: cosine
+  warmup_steps: 600
+  warmup_start_frac: 0.1
+  weight_decay: 0.1
+  grad_clip: 2.0
+  total_steps: 6000
+  factor_total_steps: 2000
+  samples_per_epoch: 200000
+  val_samples: 4096
+  log_every: 50
+  val_every: 500
+  save_every: 1000
+  workers: 4
+predictor:
+  s1_bits: 10
+  s2_bits: 10
+  n_layers: 8
+  d_model: 512
+  n_heads: 8
+  ff_dim: 1024
+  ffn_dropout_p: 0.25
+  attn_dropout_p: 0.1
+  resid_dropout_p: 0.25
+  token_dropout_p: 0.1
+  learn_te: true
+predictor_train:
+  micro_batch: 64
+  accum: 1
+  lr: 0.001
+  lr_schedule: cosine
+  warmup_steps: 1500
+  warmup_start_frac: 0.1
+  weight_decay: 0.01
+  s2_conditioning: teacher
+  total_steps: 10000
+  samples_per_epoch: 400000
+  val_samples: 4096
+  log_every: 100
+  val_every: 2000
+  save_every: 2000
+  grad_clip: 1.0
+  workers: 6
+  cond_factors:
+    hidden: 64
+    dropout: 0.25
+    group_dropout: 0.2
+  forecast_eval:
+    n_windows: 256
+    pred_len: 16
+    every: 2000
+  downstream_val:
+    every: 2000
+    pkl: data/eval/cn_test.pkl
+    val_pkl: data/eval/cn_val.pkl
+    n_dates: 20
+    lookback: 90
+    horizon: 10
+    market: CN
+    reference: true
+    stop_on: null
+    margin: 0.005
+    patience: 2
+ds:
+  zero_stage: 2
+  bf16_weights: false
+tokenizer_path: runs/pretrain_cond/tokenizer/hf_latest
